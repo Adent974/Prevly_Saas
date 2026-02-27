@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 // PATCH /api/professionals/[id] – update own profile
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: any) {
   const session = await getServerSession(authOptions);
   if (!session || session.user.id !== params.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
