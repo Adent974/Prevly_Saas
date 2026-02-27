@@ -1,0 +1,188 @@
+// Prevly SaaS Dashboard – Prisma Schema
+// https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────
+// PLATFORM ADMIN
+// ─────────────────────────────────────────────
+model Admin {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────
+// PROFESSIONAL (license buyer)
+// Doctor, gynecologist, hospital, etc.
+// ─────────────────────────────────────────────
+model Professional {
+  id               String        @id @default(cuid())
+  email            String        @unique
+  passwordHash     String
+  name             String
+  organizationName String?
+  specialty        String?       // "gynécologie", "médecine générale", "hôpital", etc.
+  phone            String?
+  address          String?
+  isActive         Boolean       @default(true)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  licensePacks     LicensePack[]
+  patients         Patient[]
+  appointments     Appointment[]
+}
+
+// ─────────────────────────────────────────────
+// LICENSE PACK
+// A bundle of N licenses purchased by a professional
+// ─────────────────────────────────────────────
+model LicensePack {
+  id              String       @id @default(cuid())
+  professionalId  String
+  professional    Professional @relation(fields: [professionalId], references: [id])
+
+  quantity        Int          // total licenses in the pack
+  usedCount       Int          @default(0)
+  priceEuros      Float
+  purchasedAt     DateTime     @default(now())
+  expiresAt       DateTime?
+  stripePaymentId String?      // future Stripe integration
+
+  licenses        License[]
+}
+
+// ─────────────────────────────────────────────
+// INDIVIDUAL LICENSE
+// One license = one seat for one patient
+// ─────────────────────────────────────────────
+model License {
+  id         String        @id @default(cuid())
+  licenseKey String        @unique @default(cuid())
+  packId     String
+  pack       LicensePack   @relation(fields: [packId], references: [id])
+
+  status     LicenseStatus @default(AVAILABLE)
+  assignedAt DateTime?
+  revokedAt  DateTime?
+  expiresAt  DateTime?
+
+  patient    Patient?
+}
+
+enum LicenseStatus {
+  AVAILABLE
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
+// ─────────────────────────────────────────────
+// PATIENT (end-user of the Prevly mobile app)
+// ─────────────────────────────────────────────
+model Patient {
+  id             String       @id @default(cuid())
+  email          String?
+  name           String?
+  ageRange       String?
+  familyHistory  Boolean      @default(false)
+  anxietyLevel   AnxietyLevel @default(LOW)
+  deviceId       String?      @unique
+
+  licenseId      String?      @unique
+  license        License?     @relation(fields: [licenseId], references: [id])
+
+  professionalId String
+  professional   Professional @relation(fields: [professionalId], references: [id])
+
+  isActive       Boolean      @default(true)
+  joinedAt       DateTime     @default(now())
+  lastSeenAt     DateTime?
+  updatedAt      DateTime     @updatedAt
+
+  selfCheckRecords SelfCheckRecord[]
+  anomalyReports   AnomalyReport[]
+  appointments     Appointment[]
+}
+
+enum AnxietyLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+// ─────────────────────────────────────────────
+// SELF-CHECK RECORD (synced from mobile app)
+// ─────────────────────────────────────────────
+model SelfCheckRecord {
+  id        String      @id @default(cuid())
+  patientId String
+  patient   Patient     @relation(fields: [patientId], references: [id])
+
+  date      DateTime
+  result    CheckResult @default(NORMAL)
+  createdAt DateTime    @default(now())
+}
+
+enum CheckResult {
+  NORMAL
+  ANOMALY
+  UNSURE
+}
+
+// ─────────────────────────────────────────────
+// ANOMALY REPORT (synced from mobile app)
+// ─────────────────────────────────────────────
+model AnomalyReport {
+  id               String   @id @default(cuid())
+  patientId        String
+  patient          Patient  @relation(fields: [patientId], references: [id])
+
+  types            String[] // ["LUMP", "PAIN", "SKIN_CHANGE", "DISCHARGE"]
+  duration         String?
+  generatedSummary String?
+  reportedAt       DateTime @default(now())
+}
+
+// ─────────────────────────────────────────────
+// APPOINTMENT
+// ─────────────────────────────────────────────
+model Appointment {
+  id             String            @id @default(cuid())
+  patientId      String
+  patient        Patient           @relation(fields: [patientId], references: [id])
+
+  professionalId String
+  professional   Professional      @relation(fields: [professionalId], references: [id])
+
+  title          String
+  doctorName     String?
+  specialty      String?
+  scheduledAt    DateTime
+  type           AppointmentType   @default(VOLUNTARY)
+  status         AppointmentStatus @default(SCHEDULED)
+  notes          String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+}
+
+enum AppointmentType {
+  VOLUNTARY
+  SUGGESTED
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
