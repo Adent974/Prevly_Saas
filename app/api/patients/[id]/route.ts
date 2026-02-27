@@ -7,9 +7,11 @@ import { prisma } from "@/lib/prisma";
 export async function GET(req: NextRequest, { params }: any) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const resolved = await params
+  const id = resolved?.id ?? params?.id
 
   const patient = await prisma.patient.findFirst({
-    where: { id: params.id, professionalId: session.user.id },
+    where: { id, professionalId: session.user.id },
     include: {
       license: true,
       selfCheckRecords: { orderBy: { date: "desc" }, take: 20 },
@@ -26,12 +28,14 @@ export async function GET(req: NextRequest, { params }: any) {
 export async function PATCH(req: NextRequest, { params }: any) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const resolved = await params
+  const id = resolved?.id ?? params?.id
 
   const body = await req.json();
   const { action, ...data } = body;
 
   const patient = await prisma.patient.findFirst({
-    where: { id: params.id, professionalId: session.user.id },
+    where: { id, professionalId: session.user.id },
     include: { license: true },
   });
   if (!patient) return NextResponse.json({ error: "Not found" }, { status: 404 });

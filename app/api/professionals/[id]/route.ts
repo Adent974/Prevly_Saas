@@ -5,8 +5,11 @@ import { prisma } from "@/lib/prisma";
 
 // PATCH /api/professionals/[id] – update own profile
 export async function PATCH(req: NextRequest, { params }: any) {
+  const resolved = await params
+  const id = resolved?.id ?? params?.id
+
   const session = await getServerSession(authOptions);
-  if (!session || session.user.id !== params.id) {
+  if (!session || session.user.id !== id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -14,7 +17,7 @@ export async function PATCH(req: NextRequest, { params }: any) {
   const { name, specialty, organizationName, phone, address } = body;
 
   const updated = await prisma.professional.update({
-    where: { id: params.id },
+    where: { id },
     data: {
       ...(name !== undefined && { name }),
       ...(specialty !== undefined && { specialty }),
